@@ -1,10 +1,86 @@
 Metadata-Version: 2.4
 Name: ldappool3
-Version: 0.0.1
+Version: 0.0.3
 Summary: Gerenciador de conexões LDAP com pooling para otimizar o desempenho em aplicações de alta demanda.
 Author-email: Carlos Alberto Borges Garcia Jr <dedraks@gmail.com>
+License: GPL-3.0-or-later
+Project-URL: Homepage, https://github.com/dedraks/ldappool3
+Project-URL: Repository, https://github.com/dedraks/ldappool3
+Keywords: ldap,ldap3,connection,pooling,pool,gerenciador de conexões,otimização de desempenho,aplicações de alta demanda
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: ldap3>=2.9.1
 Dynamic: license-file
+
+ldappool
+========
+
+A simple connector pool for python ldap3 library.
+
+The pool keeps LDAP connectors alive and let you reuse them,
+drastically reducing the time spent to initiate a ldap connection.
+
+The pool has useful features like:
+
+- transparent reconnection on failures or server restarts
+- configurable pool size and connectors timeouts
+- configurable max lifetime for connectors
+- a context manager to simplify acquiring and releasing a connector
+
+Quickstart
+::::::::::
+
+To work with the pool, you just need to create it, then use it as a
+context manager with the *connection* method::
+
+```python
+    from ldappool3 import LDAPConnectionPool3
+
+    cm = LDAPConnectionPool3(server_url='ldap://localhost', user='user@example.com', password='password123')
+
+
+    with cm.acquire() as conn:
+        conn.search(search_base='DC=EXAMPLE,DC=COM' search_filter='(sAMAccountName=some.user)')
+
+        response = conn.entries
+```
+
+The connector returned by *connection* is a LDAPObject, that's binded to the
+server. See https://pypi.org/project/python-ldap/ for details on how to use a connector.
+
+It is possible to check the state of the pool by representing the pool as a string::
+
+    from ldappool3 import LDAPConnectionPool3
+
+    cm = LDAPConnectionPool3(server_url='ldap://localhost', user='user@example.com', password='password123')
+
+    .. do something with cm ..
+
+    print(cm)
+
+This will result in output similar to this table::
+
+```
+ldap://localhost:389 - cleartext - user: user@example.com - not lazy - bound - open - <local: localhost:50277 - remote: localhost:389> - tls not started - listening - SyncStrategy - internal decoder
+ldap://localhost:389 - cleartext - user: user@example.com - not lazy - bound - open - <local: localhost:59583 - remote: localhost:389> - tls not started - listening - SyncStrategy - internal decoder
+ldap://localhost:389 - cleartext - user: user@example.com - not lazy - bound - open - <local: localhost:34709 - remote: localhost:389> - tls not started - listening - SyncStrategy - internal decoder
+ldap://localhost:389 - cleartext - user: user@example.com - not lazy - bound - open - <local: localhost:41755 - remote: localhost:389> - tls not started - listening - SyncStrategy - internal decoder
+ldap://localhost:389 - cleartext - user: user@example.com - not lazy - bound - open - <local: localhost:56227 - remote: localhost:389> - tls not started - listening - SyncStrategy - internal decoder
+```
+
+
+
+LDAPConnectionPool3 options
+:::::::::::::::::::::::::
+
+Here are the options you can use when instanciating the pool:
+
+- **server_url**: ldap server uri **[mandatory]**
+- **user**: default bind that will be used to bind a connector.
+- **passwd**: default password that will be used to bind a connector.
+- **user**: pool size. **default: 5**
+- **use_pool**: activates the pool. If False, will recreate a connector
+  each time. **default: True**
+
+The **uri** option can be ldap://server or ldaps://server. If you use ldaps://, the connection will use ssl for encrytpion. The server will perform some operations only in a ssl connection.
