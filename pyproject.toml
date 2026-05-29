@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ldappool3"
-version = "0.0.1"
+dynamic = ["version"]
 authors = [{ name="Carlos Alberto Borges Garcia Jr", email="dedraks@gmail.com" }]
 description = "Gerenciador de conexões LDAP com pooling para otimizar o desempenho em aplicações de alta demanda."
 readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+keywords = ["ldap", "ldap3", "connection", "pooling", "pool", "gerenciador de conexões", "otimização de desempenho", "aplicações de alta demanda"]
 requires-python = ">=3.9"
 
 dependencies = [
     "ldap3>=2.9.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/dedraks/ldappool3"
+Repository = "https://github.com/dedraks/ldappool3"
