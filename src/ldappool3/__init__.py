@@ -64,7 +64,7 @@ class LDAPConnectionPool3:
     with pool.acquire() as conn:
         conn.search('dc=example,dc=com', '(objectClass=person)')
     """
-    def __init__(self, server_url, user, password, pool_size=5):
+    def __init__(self, server_url, user, password, pool_size=5, use_pooling=True):
         """
         Inicializa o pool de conexões LDAP.
         Parameters
@@ -77,6 +77,8 @@ class LDAPConnectionPool3:
             Senha para autenticação.
         pool_size : int, optional
             Tamanho do pool de conexões, por padrão 5.
+        use_pooling : bool, optional
+            Se deve usar pooling de conexões, por padrão True.
         """
         self.server = Server(
             server_url, get_info='ALL',
@@ -86,6 +88,7 @@ class LDAPConnectionPool3:
         self.user = user
         self.password = password
         self.pool_size = pool_size
+        self.use_pooling = use_pooling
         self._pool = queue.Queue(maxsize=pool_size)
         self._lock = threading.Lock()
         
@@ -183,3 +186,19 @@ class LDAPConnectionPool3:
             Um contexto para gerenciar a conexão do pool.
         """
         return self.ConnectionContext(self)
+
+    def __str__(self):
+        """
+        Retorna uma representação em string do estado atual do pool de conexões.
+        
+        Returns
+        -------
+        str
+            Uma string representando o estado do pool de conexões.
+        """
+        table = ''
+        for conn in list(self._pool.queue):
+            table += f"{conn}\n"
+
+
+        return table
