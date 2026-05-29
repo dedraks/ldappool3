@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ldappool3"
-dynamic = ["version"]
+version = "0.0.2"
 authors = [{ name="Carlos Alberto Borges Garcia Jr", email="dedraks@gmail.com" }]
 description = "Gerenciador de conexões LDAP com pooling para otimizar o desempenho em aplicações de alta demanda."
 readme = "README.md"
