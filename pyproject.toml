@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ldappool3"
+version = "0.0.1"
+authors = [{ name="Carlos Alberto Borges Garcia Jr", email="dedraks@gmail.com" }]
+description = "Gerenciador de conexões LDAP com pooling para otimizar o desempenho em aplicações de alta demanda."
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+    "ldap3>=2.9.1",
+]

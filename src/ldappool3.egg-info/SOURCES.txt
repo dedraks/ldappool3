@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+src/ldappool3/__init__.py
+src/ldappool3/main.py
+src/ldappool3.egg-info/PKG-INFO
+src/ldappool3.egg-info/SOURCES.txt
+src/ldappool3.egg-info/dependency_links.txt
+src/ldappool3.egg-info/requires.txt
+src/ldappool3.egg-info/top_level.txt

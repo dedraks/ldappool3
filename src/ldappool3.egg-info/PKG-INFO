@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: ldappool3
+Version: 0.0.1
+Summary: Gerenciador de conexões LDAP com pooling para otimizar o desempenho em aplicações de alta demanda.
+Author-email: Carlos Alberto Borges Garcia Jr <dedraks@gmail.com>
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: ldap3>=2.9.1
+Dynamic: license-file
