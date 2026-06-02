@@ -64,7 +64,7 @@ class LDAPConnectionPool3:
     with pool.acquire() as conn:
         conn.search('dc=example,dc=com', '(objectClass=person)')
     """
-    def __init__(self, server_url, user, password, pool_size=5, use_pooling=True):
+    def __init__(self, server_url, user, password, pool_size=5):
         """
         Inicializa o pool de conexões LDAP.
         Parameters
@@ -77,8 +77,6 @@ class LDAPConnectionPool3:
             Senha para autenticação.
         pool_size : int, optional
             Tamanho do pool de conexões, por padrão 5.
-        use_pooling : bool, optional
-            Se deve usar pooling de conexões, por padrão True.
         """
         self.server = Server(
             server_url, get_info='ALL',
@@ -88,7 +86,6 @@ class LDAPConnectionPool3:
         self.user = user
         self.password = password
         self.pool_size = pool_size
-        self.use_pooling = use_pooling
         self._pool = queue.Queue(maxsize=pool_size)
         self._lock = threading.Lock()
         
@@ -100,30 +97,58 @@ class LDAPConnectionPool3:
     def _create_connection(self):
         """
         Cria uma nova conexão LDAP autenticada.
-        
+
         Returns
         -------
         Connection
             Uma nova conexão LDAP autenticada.
         """
         conn = Connection(
-            self.server, 
-            user=self.user, 
-            password=self.password, 
+            self.server,
+            user=self.user,
+            password=self.password,
             auto_bind=True,
-            )
+        )
         return conn
+
+    def _refresh_connection(self, conn):
+        """Validate or refresh a pooled ldap3 connection."""
+        if conn is None:
+            return self._create_connection()
+
+        try:
+            if conn.closed:
+                return self._create_connection()
+
+            # A simple rebind validates the socket state and reconnects if needed.
+            if not conn.rebind():
+                return self._create_connection()
+
+            return conn
+        except (LDAPSocketSendError, LDAPSocketReceiveError,
+                LDAPBindError, LDAPSessionTerminatedByServerError):
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+            return self._create_connection()
+        except Exception:
+            try:
+                conn.unbind()
+            except Exception:
+                pass
+            return self._create_connection()
 
     def get_connection(self, timeout=5):
         """
         Obtém uma conexão do pool, aguardando até que uma esteja disponível 
         ou o timeout seja atingido.
-        
+
         Parameters
         ----------
         timeout : int, optional
             Tempo máximo de espera por uma conexão disponível, por padrão 5 segundos.
-        
+
         Returns
         -------
         Connection
@@ -131,12 +156,27 @@ class LDAPConnectionPool3:
         """
         try:
             conn = self._pool.get(block=True, timeout=timeout)
-            # Check if connection is still alive, if not, refresh it
-            if conn.closed:
-                conn = self._create_connection()
+            conn = self._refresh_connection(conn)
             return conn
         except queue.Empty:
             raise Exception("LDAP Connection Pool timeout: No available connections.")
+
+    # def execute(self, operation, *args, retries=2, retry_delay=0.1, **kwargs):
+    #     """Execute an LDAP operation with retry on broken socket errors."""
+    #     last_exception = None
+    #     for attempt in range(retries + 1):
+    #         try:
+    #             with self.acquire() as conn:
+    #                 return operation(conn, *args, **kwargs)
+    #         except (LDAPSocketSendError, LDAPSocketReceiveError,
+    #                 LDAPBindError, LDAPSessionTerminatedByServerError) as exc:
+    #             last_exception = exc
+    #             if attempt == retries:
+    #                 raise
+    #             time.sleep(retry_delay)
+    #         except Exception:
+    #             raise
+    #     raise last_exception
 
     def return_connection(self, conn):
         """
@@ -148,10 +188,20 @@ class LDAPConnectionPool3:
             A conexão LDAP a ser devolvida ao pool.
         """
         if conn:
+            if conn.closed or not conn.bound:
+                try:
+                    conn.unbind()
+                except Exception:
+                    pass
+                return
+
             try:
                 self._pool.put_nowait(conn)
             except queue.Full:
-                conn.unbind() # If pool is somehow full, discard it safely
+                try:
+                    conn.unbind()
+                except Exception:
+                    pass
 
     class ConnectionContext:
         """
@@ -171,10 +221,75 @@ class LDAPConnectionPool3:
 
         def __enter__(self):
             self.conn = self.pool.get_connection()
+            if self.conn is None:
+                raise Exception("Failed to acquire LDAP connection from pool.")
+            if self.conn.closed or not self.conn.bound:
+                self.conn = self.pool._create_connection()
             return self.conn
 
         def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type is not None:
+                try:
+                    self.conn.unbind()
+                except Exception:
+                    pass
+                return False
+
             self.pool.return_connection(self.conn)
+            return False
+
+    class ConnectionContextWithRetry:
+        """
+        Context manager that wraps acquire with automatic retry on socket errors.
+        Keeps the familiar 'with' syntax while providing reconnection logic.
+        """
+        def __init__(self, pool, retries=2, retry_delay=0.1):
+            self.pool = pool
+            self.retries = retries
+            self.retry_delay = retry_delay
+            self.conn = None
+            self.attempt = 0
+
+        def __enter__(self):
+            last_exception = None
+            for attempt in range(self.retries + 1):
+                try:
+                    self.conn = self.pool.get_connection()
+                    if self.conn is None:
+                        raise Exception("Failed to acquire LDAP connection from pool.")
+                    if self.conn.closed or not self.conn.bound:
+                        self.conn = self.pool._create_connection()
+                    self.attempt = attempt
+                    return self.conn
+                except (LDAPSocketSendError, LDAPSocketReceiveError,
+                        LDAPBindError, LDAPSessionTerminatedByServerError) as exc:
+                    last_exception = exc
+                    if attempt == self.retries:
+                        raise
+                    time.sleep(self.retry_delay)
+                except Exception:
+                    raise
+            raise last_exception
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type in (LDAPSocketSendError, LDAPSocketReceiveError,
+                            LDAPBindError, LDAPSessionTerminatedByServerError):
+                # Socket/connection error occurred during operation, discard connection
+                try:
+                    self.conn.unbind()
+                except Exception:
+                    pass
+                return False
+
+            if exc_type is not None:
+                try:
+                    self.conn.unbind()
+                except Exception:
+                    pass
+                return False
+
+            self.pool.return_connection(self.conn)
+            return False
 
     def acquire(self):
         """
@@ -185,20 +300,33 @@ class LDAPConnectionPool3:
         ConnectionContext
             Um contexto para gerenciar a conexão do pool.
         """
-        return self.ConnectionContext(self)
+        #return self.ConnectionContext(self)
+        return self.acquire_with_retry()
 
-    def __str__(self):
+    def acquire_with_retry(self, retries=2, retry_delay=0.1):
         """
-        Retorna uma representação em string do estado atual do pool de conexões.
+        Fornece um contexto com retry automático para socket errors.
+        Use esta versão quando quiser reconnect automático durante operações.
+        
+        Parameters
+        ----------
+        retries : int, optional
+            Número de tentativas em caso de socket error (padrão: 2)
+        retry_delay : float, optional
+            Tempo de espera entre tentativas em segundos (padrão: 0.1)
         
         Returns
         -------
-        str
-            Uma string representando o estado do pool de conexões.
+        ConnectionContextWithRetry
+            Um contexto que faz retry automático em socket errors.
         """
+        return self.ConnectionContextWithRetry(self, retries=retries, retry_delay=retry_delay)
+    
+    def __str__(self):
         table = ''
         for conn in list(self._pool.queue):
             table += f"{conn}\n"
 
 
         return table
+
