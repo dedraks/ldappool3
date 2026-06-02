@@ -8,7 +8,7 @@ jobs:
     permissions:
       id-token: write  # Required for Trusted Publishing
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
