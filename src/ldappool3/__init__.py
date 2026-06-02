@@ -1,6 +1,7 @@
 import queue
 import threading
 from ldap3 import Server, Connection, ALL, Tls, SUBTREE, ALL_ATTRIBUTES, MODIFY_REPLACE, MODIFY_ADD, MODIFY_DELETE
+from ldap3.core.exceptions import LDAPSocketSendError, LDAPSocketReceiveError, LDAPBindError, LDAPSessionTerminatedByServerError
 import ssl
 
 class AD_SAM_ACCOUNT_TYPE:
