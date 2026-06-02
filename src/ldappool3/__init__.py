@@ -162,23 +162,6 @@ class LDAPConnectionPool3:
         except queue.Empty:
             raise Exception("LDAP Connection Pool timeout: No available connections.")
 
-    # def execute(self, operation, *args, retries=2, retry_delay=0.1, **kwargs):
-    #     """Execute an LDAP operation with retry on broken socket errors."""
-    #     last_exception = None
-    #     for attempt in range(retries + 1):
-    #         try:
-    #             with self.acquire() as conn:
-    #                 return operation(conn, *args, **kwargs)
-    #         except (LDAPSocketSendError, LDAPSocketReceiveError,
-    #                 LDAPBindError, LDAPSessionTerminatedByServerError) as exc:
-    #             last_exception = exc
-    #             if attempt == retries:
-    #                 raise
-    #             time.sleep(retry_delay)
-    #         except Exception:
-    #             raise
-    #     raise last_exception
-
     def return_connection(self, conn):
         """
         Retorna uma conexão ao pool.
