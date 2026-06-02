@@ -5,6 +5,10 @@ from ldap3.core.exceptions import LDAPSocketSendError, LDAPSocketReceiveError, L
 import ssl
 
 class AD_SAM_ACCOUNT_TYPE:
+    """
+    Enumeração dos tipos de conta SAM (Security Account Manager) usados no Active Directory.
+    Esses tipos são usados para identificar o tipo de objeto de conta, como usuário, grupo ou alias.
+    """
     SAM_DOMAIN_OBJECT = 0x0
     SAM_GROUP_OBJECT = 0x10000000
     SAM_NON_SECURITY_GROUP_OBJECT = 0x10000001
@@ -19,12 +23,18 @@ class AD_SAM_ACCOUNT_TYPE:
     SAM_ACCOUNT_TYPE_MAX = 0x7fffffff
 
 class AD_GROUP_TYPE_FLAGS:
+    """
+    Enumeração das flags de tipo de grupo AD (Active Directory).
+    """
     GLOBAL_GROUP = 0x00000002
     DOMAIN_LOCAL_GROUP = 0x00000004
     UNIVERSAL_GROUP = 0x00000008
     SECURITY_ENABLED = 0x80000000
 
 class AD_USER_ACCOUNT_FLAGS:
+    """
+    Enumeração das flags de conta de usuário AD (Active Directory).
+    """
     SCRIPT = 1
     ACCOUNTDISABLE = 2
     Undeclared = 4
